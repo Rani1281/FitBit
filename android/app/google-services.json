@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "787709369016",
+    "project_id": "fitbit-workout-plans",
+    "storage_bucket": "fitbit-workout-plans.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:787709369016:android:0fb0f360f6cfe0dfe5324d",
+        "android_client_info": {
+          "package_name": "com.example.fitbit"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "787709369016-btt7h82cqkrsh5lldhlej3a81622fao8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.fitbit",
+            "certificate_hash": "3caac09cb80af85d84bd6e112778f0d44ef79942"
+          }
+        },
+        {
+          "client_id": "787709369016-lbsi4hb3ob5jotphlvgkt704a2svc33a.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDloGAhsZicuORI73K604brj4dD6u7BeKw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "787709369016-lbsi4hb3ob5jotphlvgkt704a2svc33a.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "787709369016-ns5f78tkfuh926c79mftnn25gpkmvcad.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fitbit"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
