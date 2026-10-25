@@ -4,8 +4,8 @@ import '../../../../ui/core/constants/app_colors.dart';
 import '../../../../ui/core/constants/app_dimensions.dart';
 import '../../../../ui/core/constants/app_text_styles.dart';
 import '../../../../ui/core/utils/validators.dart';
-import '../../../../ui/core/widgets/app_logo.dart';
 import '../../../../ui/core/widgets/custom_text_field.dart';
+import '../../../../ui/core/widgets/inline_feedback_banner.dart';
 import '../../../../ui/core/widgets/primary_button.dart';
 import '../../../../ui/core/widgets/social_auth_button.dart';
 import '../view_models/auth_view_model.dart';
@@ -48,62 +48,46 @@ class _LoginViewState extends State<LoginView>
   }
 
   Future<void> _handleEmailLogin() async {
-    if (!_emailFormKey.currentState!.validate()) return;
+    widget.viewModel.clearMessages();
+    if (!_emailFormKey.currentState!.validate()) {
+      // widget.viewModel.setErrorMessage(
+      //   'Please check the highlighted fields below.',
+      // );
+      return;
+    }
 
-    final success = await widget.viewModel.loginWithEmail(
+    await widget.viewModel.loginWithEmail(
       email: _emailController.text,
       password: _passwordController.text,
     );
-
-    if (mounted && !success && widget.viewModel.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.viewModel.errorMessage!),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
   }
 
   Future<void> _handlePhoneLogin() async {
-    if (!_phoneFormKey.currentState!.validate()) return;
+    widget.viewModel.clearMessages();
+    if (!_phoneFormKey.currentState!.validate()) {
+      widget.viewModel.setErrorMessage('Please enter a valid phone number.');
+      return;
+    }
 
+    final phone = _phoneController.text.trim();
     await widget.viewModel.startPhoneAuth(
-      phoneNumber: _phoneController.text.trim(),
+      phoneNumber: phone,
       onCodeSent: () {
         if (mounted) {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => SmsCodeView(
-                viewModel: widget.viewModel,
-                phoneNumber: _phoneController.text.trim(),
-              ),
+              builder: (_) =>
+                  SmsCodeView(viewModel: widget.viewModel, phoneNumber: phone),
             ),
           );
         }
       },
     );
-
-    if (mounted && widget.viewModel.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.viewModel.errorMessage!),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
   }
 
   Future<void> _handleGoogleSignIn() async {
-    final success = await widget.viewModel.loginWithGoogle();
-    if (mounted && !success && widget.viewModel.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.viewModel.errorMessage!),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
+    widget.viewModel.clearMessages();
+    await widget.viewModel.loginWithGoogle();
   }
 
   @override
@@ -125,8 +109,21 @@ class _LoginViewState extends State<LoginView>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const AppLogo(size: 64, showTagline: true),
-                      const SizedBox(height: AppDimensions.space32),
+                      const Text(
+                        'Welcome Back',
+                        style: AppTextStyles.headingLarge,
+                      ),
+                      const SizedBox(height: AppDimensions.space8),
+                      const Text(
+                        'Log into your account',
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                      const SizedBox(height: AppDimensions.space16),
+                      InlineFeedbackBanner(
+                        message: widget.viewModel.errorMessage,
+                        type: FeedbackType.error,
+                        onDismiss: () => widget.viewModel.clearMessages(),
+                      ),
                       Container(
                         decoration: BoxDecoration(
                           color: AppColors.surface,
@@ -151,40 +148,36 @@ class _LoginViewState extends State<LoginView>
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                           ),
+                          onTap: (index) {
+                            widget.viewModel.clearMessages();
+                            _emailFormKey.currentState?.reset();
+                            _phoneFormKey.currentState?.reset();
+                            setState(() {});
+                          },
                           tabs: const [
-                            Tab(
-                              icon: Icon(Icons.email_outlined, size: 18),
-                              text: 'Email',
-                            ),
-                            Tab(
-                              icon: Icon(Icons.phone_iphone_rounded, size: 18),
-                              text: 'Phone',
-                            ),
+                            Tab(text: 'Email', height: 35),
+                            Tab(text: 'Phone', height: 35),
                           ],
                         ),
                       ),
                       const SizedBox(height: AppDimensions.space24),
-                      SizedBox(
-                        height: 290,
-                        child: TabBarView(
-                          controller: _tabController,
-                          children: [
-                            _buildEmailLoginForm(),
-                            _buildPhoneLoginForm(),
-                          ],
-                        ),
-                      ),
+                      _tabController.index == 0
+                          ? _buildEmailLoginForm()
+                          : _buildPhoneLoginForm(),
                       const SizedBox(height: AppDimensions.space12),
                       _buildDivider(),
-                      const SizedBox(height: AppDimensions.space20),
+                      const SizedBox(height: AppDimensions.space12),
                       SocialAuthButton(
                         text: 'Continue with Google',
-                        isLoading: widget.viewModel.isLoading,
-                        onPressed: _handleGoogleSignIn,
+                        isLoading: widget.viewModel.isGoogleLoading,
+                        onPressed: widget.viewModel.isLoading
+                            ? null
+                            : _handleGoogleSignIn,
                       ),
                       const SizedBox(height: AppDimensions.space24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           const Text(
                             "Don't have an account? ",
@@ -192,12 +185,20 @@ class _LoginViewState extends State<LoginView>
                           ),
                           GestureDetector(
                             onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      RegisterView(viewModel: widget.viewModel),
-                                ),
-                              );
+                              widget.viewModel.clearMessages();
+                              Navigator.of(context)
+                                  .push(
+                                    MaterialPageRoute(
+                                      builder: (_) => RegisterView(
+                                        viewModel: widget.viewModel,
+                                      ),
+                                    ),
+                                  )
+                                  .then((_) {
+                                    if (mounted) {
+                                      widget.viewModel.clearMessages();
+                                    }
+                                  });
                             },
                             child: const Text(
                               'Sign Up',
@@ -229,7 +230,7 @@ class _LoginViewState extends State<LoginView>
         children: [
           CustomTextField(
             label: 'Email Address',
-            hint: 'athlete@example.com',
+            hint: 'Enter your email',
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             prefixIcon: Icons.email_outlined,
@@ -238,7 +239,7 @@ class _LoginViewState extends State<LoginView>
           const SizedBox(height: AppDimensions.space12),
           CustomTextField(
             label: 'Password',
-            hint: 'Your password',
+            hint: 'Enter your password',
             controller: _passwordController,
             isPassword: true,
             prefixIcon: Icons.lock_outline_rounded,
@@ -250,12 +251,19 @@ class _LoginViewState extends State<LoginView>
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        ForgotPasswordView(viewModel: widget.viewModel),
-                  ),
-                );
+                widget.viewModel.clearMessages();
+                Navigator.of(context)
+                    .push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            ForgotPasswordView(viewModel: widget.viewModel),
+                      ),
+                    )
+                    .then((_) {
+                      if (mounted) {
+                        widget.viewModel.clearMessages();
+                      }
+                    });
               },
               child: const Text(
                 'Forgot Password?',
@@ -265,9 +273,9 @@ class _LoginViewState extends State<LoginView>
           ),
           const SizedBox(height: AppDimensions.space8),
           PrimaryButton(
-            text: 'Sign In with Email',
-            isLoading: widget.viewModel.isLoading,
-            onPressed: _handleEmailLogin,
+            text: 'Sign In',
+            isLoading: widget.viewModel.isEmailLoading,
+            onPressed: widget.viewModel.isLoading ? null : _handleEmailLogin,
           ),
         ],
       ),
@@ -319,11 +327,11 @@ class _LoginViewState extends State<LoginView>
               ],
             ),
           ),
-          const Spacer(),
+          const SizedBox(height: AppDimensions.space24),
           PrimaryButton(
             text: 'Send Verification Code',
-            isLoading: widget.viewModel.isLoading,
-            onPressed: _handlePhoneLogin,
+            isLoading: widget.viewModel.isPhoneLoading,
+            onPressed: widget.viewModel.isLoading ? null : _handlePhoneLogin,
           ),
         ],
       ),
@@ -339,7 +347,7 @@ class _LoginViewState extends State<LoginView>
             horizontal: AppDimensions.space16,
           ),
           child: Text(
-            'OR CONTINUE WITH',
+            'OR',
             style: AppTextStyles.bodySmall.copyWith(
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,

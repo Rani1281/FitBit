@@ -40,10 +40,13 @@ class SecondaryButton extends StatelessWidget {
               Icon(icon, color: AppColors.textPrimary, size: 20),
               const SizedBox(width: AppDimensions.space8),
             ],
-            Text(
-              text,
-              style: AppTextStyles.button.copyWith(
-                color: AppColors.textPrimary,
+            Flexible(
+              child: Text(
+                text,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.button.copyWith(
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
           ],

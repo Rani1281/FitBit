@@ -60,6 +60,8 @@ class _CustomTextFieldState extends State<CustomTextField> {
           style: AppTextStyles.bodyLarge,
           cursorColor: AppColors.primary,
           decoration: InputDecoration(
+            errorMaxLines: 4,
+            helperMaxLines: 4,
             hintText: widget.hint,
             hintStyle: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.textMuted,

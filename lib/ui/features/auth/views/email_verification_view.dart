@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../../ui/core/constants/app_colors.dart';
 import '../../../../ui/core/constants/app_dimensions.dart';
 import '../../../../ui/core/constants/app_text_styles.dart';
-import '../../../../ui/core/widgets/primary_button.dart';
+import '../../../../ui/core/widgets/inline_feedback_banner.dart';
 import '../../../../ui/core/widgets/secondary_button.dart';
 import '../view_models/auth_view_model.dart';
 
@@ -20,10 +20,32 @@ class EmailVerificationView extends StatefulWidget {
 
 class _EmailVerificationViewState extends State<EmailVerificationView> {
   Timer? _countdownTimer;
+  Timer? _autoCheckTimer;
   int _secondsRemaining = 0;
 
   @override
+  void initState() {
+    super.initState();
+    _startAutoVerificationTimer();
+  }
+
+  void _startAutoVerificationTimer() {
+    _autoCheckTimer?.cancel();
+    _autoCheckTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      await widget.viewModel.reloadUser();
+      if (mounted) {
+        final user = widget.viewModel.currentUser;
+        if (user != null && user.isEmailVerified) {
+          timer.cancel();
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
+      }
+    });
+  }
+
+  @override
   void dispose() {
+    _autoCheckTimer?.cancel();
     _countdownTimer?.cancel();
     super.dispose();
   }
@@ -44,54 +66,13 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
     });
   }
 
-  Future<void> _handleCheckStatus() async {
-    await widget.viewModel.reloadUser();
-    if (mounted) {
-      final user = widget.viewModel.currentUser;
-      if (user != null && user.isEmailVerified) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Email verified successfully! Welcome to FitBit.'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Email not yet verified. Please click the link sent to your inbox.',
-            ),
-            backgroundColor: AppColors.warning,
-          ),
-        );
-      }
-    }
-  }
-
   Future<void> _handleResend() async {
     if (_secondsRemaining > 0) return;
+    widget.viewModel.clearMessages();
 
     final success = await widget.viewModel.sendEmailVerification();
-    if (mounted) {
-      if (success) {
-        _startCountdown();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'A fresh verification link has been sent to your email.',
-            ),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      } else if (widget.viewModel.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.viewModel.errorMessage!),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
+    if (mounted && success) {
+      _startCountdown();
     }
   }
 
@@ -105,6 +86,8 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
         actions: [
           TextButton(
             onPressed: () async {
+              _autoCheckTimer?.cancel();
+              widget.viewModel.clearMessages();
               await widget.viewModel.signOut();
               if (context.mounted) {
                 Navigator.of(context).popUntil((route) => route.isFirst);
@@ -177,18 +160,17 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
                               ),
                             ),
                             const TextSpan(
-                              text: '.\nPlease check your inbox and confirm your address to complete verification.',
+                              text: '.\nPlease check your inbox and tap the link. This screen will automatically continue once verified.',
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: AppDimensions.space32),
-                      PrimaryButton(
-                        text: 'I Have Verified My Email',
-                        isLoading: widget.viewModel.isLoading,
-                        onPressed: _handleCheckStatus,
+                      const SizedBox(height: AppDimensions.space20),
+                      InlineFeedbackBanner(
+                        message: widget.viewModel.errorMessage,
+                        type: FeedbackType.error,
+                        onDismiss: () => widget.viewModel.clearMessages(),
                       ),
-                      const SizedBox(height: AppDimensions.space16),
                       SecondaryButton(
                         text: _secondsRemaining > 0
                             ? 'Resend email in ${_secondsRemaining}s'
@@ -199,13 +181,46 @@ class _EmailVerificationViewState extends State<EmailVerificationView> {
                       ),
                       const SizedBox(height: AppDimensions.space24),
                       Center(
+                        child: Tooltip(
+                          margin: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.all(12),
+                          triggerMode: TooltipTriggerMode.tap,
+                          showDuration: const Duration(seconds: 5),
+                          message:
+                              'Email verification confirms you own your email address and '
+                              'helps you securely recover your account if you forget your password.',
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.help_outline,
+                                size: 18,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Why should I verify my email?',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  decoration: TextDecoration.underline,
+                                  decorationStyle: TextDecorationStyle.dotted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Center(
                         child: TextButton(
                           onPressed: () {
+                            _autoCheckTimer?.cancel();
+                            widget.viewModel.clearMessages();
                             Navigator.of(context)
                                 .popUntil((route) => route.isFirst);
                           },
                           child: const Text(
-                            'Continue to Dashboard anyway',
+                            'Skip',
                             style: TextStyle(
                               color: AppColors.textSecondary,
                               decoration: TextDecoration.underline,

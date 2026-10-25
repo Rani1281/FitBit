@@ -7,6 +7,7 @@ import '../../../../ui/core/constants/app_dimensions.dart';
 import '../../../../ui/core/constants/app_text_styles.dart';
 import '../../../../ui/core/utils/validators.dart';
 import '../../../../ui/core/widgets/custom_text_field.dart';
+import '../../../../ui/core/widgets/inline_feedback_banner.dart';
 import '../../../../ui/core/widgets/primary_button.dart';
 import '../view_models/auth_view_model.dart';
 
@@ -58,39 +59,31 @@ class _SmsCodeViewState extends State<SmsCodeView> {
   }
 
   Future<void> _handleVerify() async {
-    if (!_formKey.currentState!.validate()) return;
+    widget.viewModel.clearMessages();
+    if (!_formKey.currentState!.validate()) {
+      widget.viewModel.setErrorMessage(
+        'Please enter the full 6-digit code received via SMS.',
+      );
+      return;
+    }
 
     final success = await widget.viewModel.verifySmsCode(
       smsCode: _codeController.text,
     );
 
-    if (mounted) {
-      if (success) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      } else if (widget.viewModel.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.viewModel.errorMessage!),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
+    if (mounted && success) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
   Future<void> _handleResend() async {
     if (_secondsRemaining > 0) return;
+    widget.viewModel.clearMessages();
 
     await widget.viewModel.resendPhoneCode(
       onCodeSent: () {
         if (mounted) {
           _startCountdown();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('New code sent to ${widget.phoneNumber}'),
-              backgroundColor: AppColors.success,
-            ),
-          );
         }
       },
     );
@@ -108,7 +101,10 @@ class _SmsCodeViewState extends State<SmsCodeView> {
             Icons.arrow_back_ios_new_rounded,
             color: Colors.white,
           ),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            widget.viewModel.clearMessages();
+            Navigator.of(context).pop();
+          },
         ),
       ),
       body: SafeArea(
@@ -162,7 +158,12 @@ class _SmsCodeViewState extends State<SmsCodeView> {
                           style: AppTextStyles.bodyMedium,
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: AppDimensions.space32),
+                        const SizedBox(height: AppDimensions.space20),
+                        InlineFeedbackBanner(
+                          message: widget.viewModel.errorMessage,
+                          type: FeedbackType.error,
+                          onDismiss: () => widget.viewModel.clearMessages(),
+                        ),
                         CustomTextField(
                           label: '6-Digit Code',
                           hint: '123456',

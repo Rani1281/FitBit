@@ -120,7 +120,7 @@ void main() {
     await tester.pumpWidget(MyApp(authViewModel: viewModel));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sign In with Email'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
     expect(find.text('Continue with Google'), findsOneWidget);
     expect(find.text('Sign Up'), findsOneWidget);
   });

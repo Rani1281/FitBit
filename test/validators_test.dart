@@ -3,6 +3,18 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('Validators Test Suite', () {
+    test('normalizePhoneNumber removes spaces, dashes, and parentheses', () {
+      expect(
+        Validators.normalizePhoneNumber('+1 (650) 555-1234'),
+        equals('+16505551234'),
+      );
+      expect(
+        Validators.normalizePhoneNumber('+44 7911-123456'),
+        equals('+447911123456'),
+      );
+      expect(Validators.normalizePhoneNumber(null), equals(''));
+    });
+
     test('validateFirstName checks emptiness, length and characters', () {
       expect(Validators.validateFirstName(''), isNotNull);
       expect(Validators.validateFirstName('A'), isNotNull);
@@ -36,10 +48,25 @@ void main() {
       );
     });
 
-    test('validatePhoneNumber checks international E.164 format', () {
-      expect(Validators.validatePhoneNumber(''), isNotNull);
-      expect(Validators.validatePhoneNumber('12345'), isNotNull);
+    test('validatePhoneNumber checks country code, length, and format', () {
+      expect(
+        Validators.validatePhoneNumber(''),
+        equals('Phone number is required'),
+      );
+      expect(
+        Validators.validatePhoneNumber('1234567890'),
+        contains('include country code with +'),
+      );
+      expect(
+        Validators.validatePhoneNumber('+12345'),
+        contains('Phone number is too short'),
+      );
+      expect(
+        Validators.validatePhoneNumber('+1234567890123456789'),
+        contains('Phone number is too long'),
+      );
       expect(Validators.validatePhoneNumber('+1234567890'), isNull);
+      expect(Validators.validatePhoneNumber('+1 (650) 555-1234'), isNull);
       expect(Validators.validatePhoneNumber('+447911123456'), isNull);
     });
 

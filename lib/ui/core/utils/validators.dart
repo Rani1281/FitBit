@@ -1,6 +1,11 @@
 class Validators {
   Validators._();
 
+  static String normalizePhoneNumber(String? phone) {
+    if (phone == null) return '';
+    return phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
+  }
+
   static String? validateFirstName(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'First name is required';
@@ -58,11 +63,31 @@ class Validators {
       return 'Phone number is required';
     }
     final trimmed = value.trim();
-    // Validates international E.164 phone numbers (e.g. +12345678901)
-    final phoneRegex = RegExp(r'^\+[1-9]\d{7,14}$');
-    if (!phoneRegex.hasMatch(trimmed)) {
-      return 'Include country code with + (e.g. +1234567890)';
+
+    if (!trimmed.startsWith('+')) {
+      return 'Please include country code with + (e.g. +1 555 123 4567)';
     }
+
+    final normalized = normalizePhoneNumber(trimmed);
+    // After +, must only contain digits
+    final onlyDigitsAfterPlus = RegExp(r'^\+[0-9]+$');
+    if (!onlyDigitsAfterPlus.hasMatch(normalized)) {
+      return 'Phone number can only contain digits, spaces, and dashes';
+    }
+
+    if (normalized.length < 9) {
+      return 'Phone number is too short. Please enter a valid number';
+    }
+
+    if (normalized.length > 16) {
+      return 'Phone number is too long. Please verify your number';
+    }
+
+    final phoneRegex = RegExp(r'^\+[1-9]\d{7,14}$');
+    if (!phoneRegex.hasMatch(normalized)) {
+      return 'Please enter a valid phone number (e.g. +1 555 123 4567)';
+    }
+
     return null;
   }
 
@@ -72,7 +97,7 @@ class Validators {
     }
     final trimmed = value.trim();
     if (trimmed.length != 6 || !RegExp(r'^\d{6}$').hasMatch(trimmed)) {
-      return 'Please enter the 6-digit code';
+      return 'Please enter the full 6-digit code';
     }
     return null;
   }

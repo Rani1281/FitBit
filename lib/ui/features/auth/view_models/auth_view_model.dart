@@ -19,7 +19,15 @@ class AuthViewModel extends ChangeNotifier {
   UserEntity? get currentUser => _currentUser;
 
   bool _isLoading = false;
-  bool get isLoading => _isLoading;
+  bool _isEmailLoading = false;
+  bool _isPhoneLoading = false;
+  bool _isGoogleLoading = false;
+
+  bool get isLoading =>
+      _isLoading || _isEmailLoading || _isPhoneLoading || _isGoogleLoading;
+  bool get isEmailLoading => _isEmailLoading;
+  bool get isPhoneLoading => _isPhoneLoading;
+  bool get isGoogleLoading => _isGoogleLoading;
 
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
@@ -52,12 +60,19 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setErrorMessage(String? message) {
+    _errorMessage = message;
+    notifyListeners();
+  }
+
   Future<bool> loginWithEmail({
     required String email,
     required String password,
   }) async {
-    _setLoading(true);
+    _isEmailLoading = true;
     _clearErrors();
+    notifyListeners();
+
     try {
       final user = await _authRepository.signInWithEmailAndPassword(
         email: email,
@@ -70,7 +85,8 @@ class AuthViewModel extends ChangeNotifier {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       return false;
     } finally {
-      _setLoading(false);
+      _isEmailLoading = false;
+      notifyListeners();
     }
   }
 
@@ -79,8 +95,10 @@ class AuthViewModel extends ChangeNotifier {
     required String password,
     required String firstName,
   }) async {
-    _setLoading(true);
+    _isEmailLoading = true;
     _clearErrors();
+    notifyListeners();
+
     try {
       final user = await _authRepository.registerWithEmailAndPassword(
         email: email,
@@ -95,13 +113,16 @@ class AuthViewModel extends ChangeNotifier {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       return false;
     } finally {
-      _setLoading(false);
+      _isEmailLoading = false;
+      notifyListeners();
     }
   }
 
   Future<bool> sendEmailVerification() async {
-    _setLoading(true);
+    _isLoading = true;
     _clearErrors();
+    notifyListeners();
+
     try {
       await _authRepository.sendEmailVerification();
       _successMessage = 'Verification link sent to your email!';
@@ -110,13 +131,16 @@ class AuthViewModel extends ChangeNotifier {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       return false;
     } finally {
-      _setLoading(false);
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
   Future<bool> sendPasswordResetEmail({required String email}) async {
-    _setLoading(true);
+    _isLoading = true;
     _clearErrors();
+    notifyListeners();
+
     try {
       await _authRepository.sendPasswordResetEmail(email: email);
       _successMessage = 'Password reset instructions sent to $email';
@@ -125,7 +149,8 @@ class AuthViewModel extends ChangeNotifier {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       return false;
     } finally {
-      _setLoading(false);
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -133,34 +158,50 @@ class AuthViewModel extends ChangeNotifier {
     required String phoneNumber,
     String? firstName,
     required void Function() onCodeSent,
+    void Function(String error)? onError,
   }) async {
-    _setLoading(true);
+    _isPhoneLoading = true;
     _clearErrors();
     _pendingPhoneNumber = phoneNumber;
     _pendingFirstName = firstName;
+    notifyListeners();
 
-    await _authRepository.verifyPhoneNumber(
-      phoneNumber: phoneNumber,
-      resendToken: _resendToken,
-      onCodeSent: (verificationId, resendToken) {
-        _verificationId = verificationId;
-        _resendToken = resendToken;
-        _setLoading(false);
-        _successMessage = 'Verification code sent to $phoneNumber';
-        onCodeSent();
-      },
-      onError: (error) {
-        _setLoading(false);
-        _errorMessage = error;
-        notifyListeners();
-      },
-      onAutoVerified: (user) {
-        _currentUser = user;
-        _setLoading(false);
-        _successMessage = 'Phone verified automatically!';
-        notifyListeners();
-      },
-    );
+    try {
+      await _authRepository.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        resendToken: _resendToken,
+        onCodeSent: (verificationId, resendToken) {
+          _verificationId = verificationId;
+          _resendToken = resendToken;
+          _isPhoneLoading = false;
+          _successMessage = 'Verification code sent to $phoneNumber';
+          notifyListeners();
+          onCodeSent();
+        },
+        onError: (error) {
+          _isPhoneLoading = false;
+          _errorMessage = error;
+          notifyListeners();
+          if (onError != null) {
+            onError(error);
+          }
+        },
+        onAutoVerified: (user) {
+          _currentUser = user;
+          _isPhoneLoading = false;
+          _successMessage = 'Phone verified automatically!';
+          notifyListeners();
+        },
+      );
+    } catch (e) {
+      _isPhoneLoading = false;
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      _errorMessage = msg;
+      notifyListeners();
+      if (onError != null) {
+        onError(msg);
+      }
+    }
   }
 
   Future<bool> verifySmsCode({required String smsCode}) async {
@@ -170,8 +211,10 @@ class AuthViewModel extends ChangeNotifier {
       return false;
     }
 
-    _setLoading(true);
+    _isPhoneLoading = true;
     _clearErrors();
+    notifyListeners();
+
     try {
       final user = await _authRepository.signInWithSmsCode(
         verificationId: _verificationId!,
@@ -185,7 +228,8 @@ class AuthViewModel extends ChangeNotifier {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       return false;
     } finally {
-      _setLoading(false);
+      _isPhoneLoading = false;
+      notifyListeners();
     }
   }
 
@@ -200,8 +244,10 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<bool> loginWithGoogle() async {
-    _setLoading(true);
+    _isGoogleLoading = true;
     _clearErrors();
+    notifyListeners();
+
     try {
       final user = await _authRepository.signInWithGoogle();
       _currentUser = user;
@@ -211,7 +257,8 @@ class AuthViewModel extends ChangeNotifier {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
       return false;
     } finally {
-      _setLoading(false);
+      _isGoogleLoading = false;
+      notifyListeners();
     }
   }
 
@@ -224,7 +271,9 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
-    _setLoading(true);
+    _isLoading = true;
+    notifyListeners();
+
     try {
       await _authRepository.signOut();
       _currentUser = null;
@@ -236,13 +285,12 @@ class AuthViewModel extends ChangeNotifier {
     } catch (e) {
       _errorMessage = 'Failed to sign out: $e';
     } finally {
-      _setLoading(false);
+      _isLoading = false;
+      _isEmailLoading = false;
+      _isPhoneLoading = false;
+      _isGoogleLoading = false;
+      notifyListeners();
     }
-  }
-
-  void _setLoading(bool value) {
-    _isLoading = value;
-    notifyListeners();
   }
 
   void _clearErrors() {

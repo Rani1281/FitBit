@@ -4,8 +4,8 @@ import '../../../../ui/core/constants/app_colors.dart';
 import '../../../../ui/core/constants/app_dimensions.dart';
 import '../../../../ui/core/constants/app_text_styles.dart';
 import '../../../../ui/core/utils/validators.dart';
-import '../../../../ui/core/widgets/app_logo.dart';
 import '../../../../ui/core/widgets/custom_text_field.dart';
+import '../../../../ui/core/widgets/inline_feedback_banner.dart';
 import '../../../../ui/core/widgets/primary_button.dart';
 import '../../../../ui/core/widgets/social_auth_button.dart';
 import '../view_models/auth_view_model.dart';
@@ -54,7 +54,13 @@ class _RegisterViewState extends State<RegisterView>
   }
 
   Future<void> _handleEmailRegister() async {
-    if (!_emailFormKey.currentState!.validate()) return;
+    widget.viewModel.clearMessages();
+    if (!_emailFormKey.currentState!.validate()) {
+      // widget.viewModel.setErrorMessage(
+      //   'Please check the highlighted fields below.',
+      // );
+      return;
+    }
 
     final success = await widget.viewModel.registerWithEmail(
       email: _emailController.text,
@@ -62,67 +68,46 @@ class _RegisterViewState extends State<RegisterView>
       firstName: _firstNameEmailController.text,
     );
 
-    if (mounted) {
-      if (success) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => EmailVerificationView(viewModel: widget.viewModel),
-          ),
-        );
-      } else if (widget.viewModel.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.viewModel.errorMessage!),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _handlePhoneRegister() async {
-    if (!_phoneFormKey.currentState!.validate()) return;
-
-    await widget.viewModel.startPhoneAuth(
-      phoneNumber: _phoneController.text.trim(),
-      firstName: _firstNamePhoneController.text.trim(),
-      onCodeSent: () {
-        if (mounted) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => SmsCodeView(
-                viewModel: widget.viewModel,
-                phoneNumber: _phoneController.text.trim(),
-              ),
-            ),
-          );
-        }
-      },
-    );
-
-    if (mounted && widget.viewModel.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(widget.viewModel.errorMessage!),
-          backgroundColor: AppColors.error,
+    if (mounted && success) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => EmailVerificationView(viewModel: widget.viewModel),
         ),
       );
     }
   }
 
+  Future<void> _handlePhoneRegister() async {
+    widget.viewModel.clearMessages();
+    if (!_phoneFormKey.currentState!.validate()) {
+      // widget.viewModel.setErrorMessage(
+      //   'Please check the highlighted fields below.',
+      // );
+      return;
+    }
+
+    final phone = _phoneController.text.trim();
+    await widget.viewModel.startPhoneAuth(
+      phoneNumber: phone,
+      firstName: _firstNamePhoneController.text.trim(),
+      onCodeSent: () {
+        if (mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  SmsCodeView(viewModel: widget.viewModel, phoneNumber: phone),
+            ),
+          );
+        }
+      },
+    );
+  }
+
   Future<void> _handleGoogleSignIn() async {
+    widget.viewModel.clearMessages();
     final success = await widget.viewModel.loginWithGoogle();
-    if (mounted) {
-      if (success) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
-      } else if (widget.viewModel.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.viewModel.errorMessage!),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
+    if (mounted && success) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
@@ -131,6 +116,7 @@ class _RegisterViewState extends State<RegisterView>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
@@ -138,7 +124,10 @@ class _RegisterViewState extends State<RegisterView>
             Icons.arrow_back_ios_new_rounded,
             color: Colors.white,
           ),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            widget.viewModel.clearMessages();
+            Navigator.of(context).pop();
+          },
         ),
       ),
       body: SafeArea(
@@ -156,20 +145,21 @@ class _RegisterViewState extends State<RegisterView>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const AppLogo(size: 52, showTagline: false),
-                      const SizedBox(height: AppDimensions.space16),
                       const Text(
-                        'Join FitBit',
+                        'Start your journey',
                         style: AppTextStyles.headingLarge,
-                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: AppDimensions.space8),
                       const Text(
-                        'Create an account to track your workouts and reach your goals',
+                        'Create a new account',
                         style: AppTextStyles.bodyMedium,
-                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: AppDimensions.space24),
+                      const SizedBox(height: AppDimensions.space16),
+                      InlineFeedbackBanner(
+                        message: widget.viewModel.errorMessage,
+                        type: FeedbackType.error,
+                        onDismiss: () => widget.viewModel.clearMessages(),
+                      ),
                       Container(
                         decoration: BoxDecoration(
                           color: AppColors.surface,
@@ -194,47 +184,46 @@ class _RegisterViewState extends State<RegisterView>
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                           ),
+                          onTap: (index) {
+                            widget.viewModel.clearMessages();
+                            _emailFormKey.currentState?.reset();
+                            _phoneFormKey.currentState?.reset();
+                            setState(() {});
+                          },
                           tabs: const [
-                            Tab(
-                              icon: Icon(Icons.email_outlined, size: 18),
-                              text: 'Email',
-                            ),
-                            Tab(
-                              icon: Icon(Icons.phone_iphone_rounded, size: 18),
-                              text: 'Phone',
-                            ),
+                            Tab(text: 'Email', height: 35),
+                            Tab(text: 'Phone', height: 35),
                           ],
                         ),
                       ),
                       const SizedBox(height: AppDimensions.space24),
-                      SizedBox(
-                        height: 440,
-                        child: TabBarView(
-                          controller: _tabController,
-                          children: [
-                            _buildEmailRegisterForm(),
-                            _buildPhoneRegisterForm(),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppDimensions.space16),
+                      _tabController.index == 0
+                          ? _buildEmailRegisterForm()
+                          : _buildPhoneRegisterForm(),
+                      const SizedBox(height: AppDimensions.space12),
                       _buildDivider(),
-                      const SizedBox(height: AppDimensions.space16),
+                      const SizedBox(height: AppDimensions.space12),
                       SocialAuthButton(
                         text: 'Sign up with Google',
-                        isLoading: widget.viewModel.isLoading,
-                        onPressed: _handleGoogleSignIn,
+                        isLoading: widget.viewModel.isGoogleLoading,
+                        onPressed: widget.viewModel.isLoading
+                            ? null
+                            : _handleGoogleSignIn,
                       ),
                       const SizedBox(height: AppDimensions.space24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           const Text(
                             'Already have an account? ',
                             style: AppTextStyles.bodyMedium,
                           ),
                           GestureDetector(
-                            onTap: () => Navigator.of(context).pop(),
+                            onTap: () {
+                              widget.viewModel.clearMessages();
+                              Navigator.of(context).pop();
+                            },
                             child: const Text(
                               'Sign In',
                               style: TextStyle(
@@ -260,12 +249,12 @@ class _RegisterViewState extends State<RegisterView>
   Widget _buildEmailRegisterForm() {
     return Form(
       key: _emailFormKey,
-      child: ListView(
-        physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CustomTextField(
             label: 'First Name',
-            hint: 'Alex',
+            hint: 'Enter your first name',
             controller: _firstNameEmailController,
             prefixIcon: Icons.person_outline_rounded,
             validator: Validators.validateFirstName,
@@ -273,7 +262,7 @@ class _RegisterViewState extends State<RegisterView>
           const SizedBox(height: AppDimensions.space12),
           CustomTextField(
             label: 'Email',
-            hint: 'alex@example.com',
+            hint: 'Enter your email',
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             prefixIcon: Icons.email_outlined,
@@ -282,7 +271,7 @@ class _RegisterViewState extends State<RegisterView>
           const SizedBox(height: AppDimensions.space12),
           CustomTextField(
             label: 'Password',
-            hint: 'At least 6 characters',
+            hint: 'Create a strong password',
             controller: _passwordController,
             isPassword: true,
             prefixIcon: Icons.lock_outline_rounded,
@@ -291,7 +280,7 @@ class _RegisterViewState extends State<RegisterView>
           const SizedBox(height: AppDimensions.space12),
           CustomTextField(
             label: 'Confirm Password',
-            hint: 'Repeat your password',
+            hint: 'Enter password again',
             controller: _confirmPasswordController,
             isPassword: true,
             prefixIcon: Icons.lock_reset_rounded,
@@ -305,8 +294,8 @@ class _RegisterViewState extends State<RegisterView>
           const SizedBox(height: AppDimensions.space20),
           PrimaryButton(
             text: 'Create Account',
-            isLoading: widget.viewModel.isLoading,
-            onPressed: _handleEmailRegister,
+            isLoading: widget.viewModel.isEmailLoading,
+            onPressed: widget.viewModel.isLoading ? null : _handleEmailRegister,
           ),
         ],
       ),
@@ -316,8 +305,8 @@ class _RegisterViewState extends State<RegisterView>
   Widget _buildPhoneRegisterForm() {
     return Form(
       key: _phoneFormKey,
-      child: ListView(
-        physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CustomTextField(
             label: 'First Name',
@@ -369,8 +358,8 @@ class _RegisterViewState extends State<RegisterView>
           const SizedBox(height: AppDimensions.space24),
           PrimaryButton(
             text: 'Send SMS Verification',
-            isLoading: widget.viewModel.isLoading,
-            onPressed: _handlePhoneRegister,
+            isLoading: widget.viewModel.isPhoneLoading,
+            onPressed: widget.viewModel.isLoading ? null : _handlePhoneRegister,
           ),
         ],
       ),

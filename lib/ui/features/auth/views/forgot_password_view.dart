@@ -29,25 +29,20 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
   }
 
   Future<void> _handleSubmit() async {
-    if (!_formKey.currentState!.validate()) return;
+    widget.viewModel.clearMessages();
+    if (!_formKey.currentState!.validate()) {
+      widget.viewModel.setErrorMessage('Please enter a valid email address.');
+      return;
+    }
 
     final success = await widget.viewModel.sendPasswordResetEmail(
       email: _emailController.text,
     );
 
-    if (mounted) {
-      if (success) {
-        setState(() {
-          _emailSent = true;
-        });
-      } else if (widget.viewModel.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.viewModel.errorMessage!),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
+    if (mounted && success) {
+      setState(() {
+        _emailSent = true;
+      });
     }
   }
 
@@ -63,7 +58,10 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
             Icons.arrow_back_ios_new_rounded,
             color: Colors.white,
           ),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            widget.viewModel.clearMessages();
+            Navigator.of(context).pop();
+          },
         ),
       ),
       body: SafeArea(
@@ -126,7 +124,13 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
             style: AppTextStyles.bodyMedium,
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: AppDimensions.space32),
+          const SizedBox(height: AppDimensions.space20),
+          // DON'T UNCOMMENT
+          // InlineFeedbackBanner(
+          //   message: widget.viewModel.errorMessage,
+          //   type: FeedbackType.error,
+          //   onDismiss: () => widget.viewModel.clearMessages(),
+          // ),
           CustomTextField(
             label: 'Email Address',
             hint: 'athlete@example.com',
@@ -181,7 +185,10 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
         const SizedBox(height: AppDimensions.space32),
         PrimaryButton(
           text: 'Back to Sign In',
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            widget.viewModel.clearMessages();
+            Navigator.of(context).pop();
+          },
         ),
       ],
     );
